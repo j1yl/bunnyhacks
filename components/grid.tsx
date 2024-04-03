@@ -2,75 +2,112 @@
 
 import React, { useEffect, useState, useRef } from "react";
 
-type Props = {};
-
-const Grid: React.FC<Props> = () => {
-  const [dimensions, setDimensions] = useState({ width: 0, height: 0 });
+const Grid = () => {
+  const [asciiArt, setAsciiArt] = useState<string[]>([]);
+  const [frameCount, setFrameCount] = useState(0);
   const gridRef = useRef<HTMLDivElement>(null);
+
+  const asciiChars = "%@#!*+=-:.";
+  const scrambleRate = 10;
 
   useEffect(() => {
     const updateDimensions = () => {
       if (gridRef.current) {
-        setDimensions({
+        const dimensions = {
           width: gridRef.current.offsetWidth,
           height: gridRef.current.offsetHeight,
-        });
+        };
+        generateAsciiArt("BUNNYHACKS", dimensions.width, dimensions.height);
       }
     };
 
     window.addEventListener("resize", updateDimensions);
     updateDimensions();
 
-    return () => window.removeEventListener("resize", updateDimensions);
+    const interval = setInterval(() => {
+      setFrameCount((prevCount) => prevCount + 1);
+    }, 100);
+
+    return () => {
+      window.removeEventListener("resize", updateDimensions);
+      clearInterval(interval);
+    };
   }, []);
 
-  const init = (): string[][] => {
-    const charWidth = 7;
-    const charHeight = 16;
-    const rows = Math.floor(dimensions.height / charHeight);
-    const cols = Math.floor(dimensions.width / charWidth);
+  useEffect(() => {
+    if (frameCount % scrambleRate === 0) {
+      setAsciiArt((currentAscii) =>
+        currentAscii.map((row) =>
+          row
+            .split("")
+            .map((char) =>
+              char !== "." && Math.random() > 0.9
+                ? asciiChars[Math.floor(Math.random() * asciiChars.length)]
+                : char
+            )
+            .join("")
+        )
+      );
+    }
+  }, [frameCount]);
 
-    const grid = Array.from({ length: rows }, () =>
-      Array.from({ length: cols }, () => ".")
-    );
+  const generateAsciiArt = (
+    text: string,
+    canvasWidth: number,
+    canvasHeight: number
+  ) => {
+    const canvas = document.createElement("canvas");
+    const context = canvas.getContext("2d");
 
-    // Determine the size of the "B"
-    const bHeight = rows; // The "B" takes up the full height
-    const bWidth = Math.max(5, Math.floor(cols / 5)); // Ensure the "B" has a minimum width, adjust as needed
+    if (!context) return;
 
-    // Fill the grid to draw a large "B"
-    for (let row = 0; row < bHeight; row++) {
-      for (let col = 0; col < bWidth; col++) {
-        // Simple logic to create a "B" shape, needs customization
-        if (
-          col === 0 || // Vertical line
-          ((row === 0 ||
-            row === bHeight - 1 ||
-            row === Math.floor(bHeight / 2)) &&
-            col < bWidth - 1) || // Top, middle, bottom horizontal lines
-          (col === bWidth - 1 &&
-            row !== 0 &&
-            row !== bHeight - 1 &&
-            row !== Math.floor(bHeight / 2))
-        ) {
-          // Right side curves, simplified
-          grid[row][col] = "%";
+    canvas.width = canvasWidth;
+    canvas.height = canvasHeight;
+
+    const fontSize = (canvasWidth / text.length) * 0.6;
+    context.font = `900 ${fontSize}px sans-serif`;
+    context.fillStyle = "white";
+    context.textAlign = "center";
+    context.textBaseline = "middle";
+    context.fillText(text, canvasWidth / 2, canvasHeight / 2);
+
+    const imageData = context.getImageData(0, 0, canvasWidth, canvasHeight);
+    const pixels = imageData.data;
+    const asciiImage = [];
+
+    const stepY = Math.ceil(fontSize / 16);
+    const stepX = Math.ceil((stepY * 9) / 16);
+
+    for (let y = 0; y < canvasHeight; y += stepY) {
+      let row = "";
+      for (let x = 0; x < canvasWidth; x += stepX) {
+        const offset = (y * canvasWidth + x) * 4;
+        const alpha = pixels[offset + 3];
+        if (alpha === 0) {
+          row += ".";
+        } else {
+          const color =
+            (pixels[offset] + pixels[offset + 1] + pixels[offset + 2]) / 3;
+          const brightness = color / 255;
+          const charIndex = Math.floor(
+            (1.0 - brightness) * (asciiChars.length - 1)
+          );
+          row += asciiChars[charIndex];
         }
       }
+      asciiImage.push(row);
     }
 
-    return grid;
+    setAsciiArt(asciiImage);
   };
-
-  const grid = init();
 
   return (
     <div
       ref={gridRef}
-      className="w-full min-h-screen overflow-hidden grid grid-cols-1 whitespace-pre leading-[16px]"
+      className="w-full h-screen overflow-hidden flex flex-col items-center justify-center leading-none"
     >
-      {grid.map((row, i) => (
-        <span key={i}>{row.join("")}</span>
+      {asciiArt.map((row, i) => (
+        <pre key={i}>{row}</pre>
       ))}
     </div>
   );
