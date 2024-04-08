@@ -1,9 +1,9 @@
-import Grid from "@/components/grid";
+import Bunny from "@/components/bunny";
 
 export default function Page() {
   return (
     <>
-      <Grid />
+      <Bunny />
     </>
   );
 }

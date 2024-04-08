@@ -7,7 +7,7 @@ const inter = Inter({ subsets: ["latin"] });
 const pt = PT_Mono({ subsets: ["latin"], weight: ["400"] });
 
 export const metadata: Metadata = {
-  title: "ASCII",
+  title: "Bunny ASCII",
   description: "Submission for BunnyHacks S2024",
 };
 
